@@ -1,65 +1,84 @@
-# FCG-Orchestration — Tech Challenge Fase 2
+# FCG-Orchestration — Fase 2 FIAP
 
-Quinto repositório, dedicado exclusivamente à **orquestração e infraestrutura** da FIAP Cloud Games.
+Repositório central de **manifests Kubernetes, Docker Compose e scripts de implantação**. Os quatro códigos-fonte e respectivos Dockerfiles continuam em repositórios Git independentes. **O Git guarda os nomes das imagens e configurações, não os arquivos binários das imagens Docker**. O Docker Hub armazena as imagens e o Kubernetes faz pull.
 
-## Organização dos cinco repositórios
+## Status real
 
-Todos devem ser clonados como pastas **irmãs**:
+- `PaymentsAPI`: manifestos reais centralizados em `k8s/payments`, Compose via imagem do Docker Hub, testes automatizados existentes.
+- `RabbitMQ`: manifestos em `k8s/rabbitmq`.
+- `UsersAPI`, `CatalogAPI`, `NotificationsAPI`: pastas reservadas, aguardando código e configurações dos repositórios; ainda **não** executáveis a partir daqui.
+- **Decisão validada com o professor:** todos os manifestos Kubernetes ficam exclusivamente neste repositório (`FCG-Orchestration/k8s`). Os repositórios de microsserviços devem manter código-fonte, Dockerfile e testes, sem pastas `/k8s` duplicadas.
 
-```text
-FCG/
-├── UsersAPI/                   # futuro: repositório separado
-├── CatalogAPI/                 # futuro: repositório separado
-├── PaymentsAPI/                # repositório do serviço, com seu Dockerfile e k8s/
-├── NotificationsAPI/           # futuro: repositório separado
-└── FCG-Orchestration/          # ESTE repositório
-    ├── docker-compose.yml
-    ├── .env.example
-    ├── k8s/rabbitmq/rabbitmq.yaml
-    └── scripts/deploy-local.sh
+## 1. Publicar PaymentsAPI no Docker Hub (PowerShell)
+
+Coloque os repositórios `FCG_PaymentsAPI` e `FCG-Orchestration` lado a lado. No terminal:
+
+```powershell
+docker login
+cd FCG-Orchestration
+.\scripts\publish-payments.ps1 -DockerHubUser SEU_USUARIO -Tag 2.1
 ```
 
-## Docker Compose (etapa atual)
+A imagem publicada será `SEU_USUARIO/fcg-payments-api:2.1`. Não há necessidade de copiar o código da API para este repositório. Repetir a publicação para novas versões com **tags específicas**, evitando depender de `latest`.
 
-O compose **já executa o RabbitMQ e o PaymentsAPI**, usando o `Dockerfile` mantido no repositório da API. Os outros três serviços serão acrescentados quando forem implementados. Portanto, **a aplicação completa ainda não está pronta para `docker compose up`**.
+## 2. Docker Compose: executar imagens publicadas
 
-```bash
-cd FCG-Orchestration
-cp .env.example .env
-# editar .env e definir credenciais locais
-# Windows PowerShell: Copy-Item .env.example .env
-docker compose up --build -d
+```powershell
+Copy-Item .env.example .env
+# Edite .env com DOCKERHUB_USERNAME e RABBITMQ_PASSWORD real
+# docker compose lê .env automaticamente
+docker compose pull
+docker compose up -d
 docker compose ps
 docker compose logs -f payments-api
 ```
 
-- API pagamentos: http://localhost:8082/swagger
-- RabbitMQ management: http://localhost:15672 (credenciais no `.env`)
-- Health check: http://localhost:8082/health
+Endpoints: `http://localhost:8082/health`, `/ready`, `/swagger` e `/dashboard` (modo Development); RabbitMQ Management em `http://localhost:15672`. No Compose, após o primeiro pull, o código-fonte não precisa estar presente.
 
-**Contratos compartilhados:** Catalog publica `OrderPlacedEvent`, Payments consome e publica `PaymentProcessedEvent`; Catalog e Notifications devem consumi-lo em **filas diferentes**. Padronizar tipos e namespaces em todos os serviços.
+## 3. Kubernetes local (Docker Desktop)
 
-## Kubernetes local
+Kubernetes habilitado e `kubectl config current-context` apontando para o cluster desejado. **Não execute o script contra um cluster de produção.** Configure as variáveis na sessão PowerShell:
 
-- Cada microserviço conserva `Dockerfile` e `k8s/` próprios (exigido pelo enunciado).
-- Este repositório guarda a implantação do broker e centraliza o comando de deploy.
-- Aplique primeiro a infraestrutura e depois os manifests de cada serviço. Em Bash:
-
-```bash
-./scripts/deploy-local.sh
-kubectl get deployments,services,pods
+```powershell
+$env:DOCKERHUB_USERNAME = 'SEU_USUARIO'
+$env:PAYMENTS_TAG = '2.1'
+$env:RABBITMQ_USER = 'fcg'
+$env:RABBITMQ_PASSWORD = 'SENHA_FORTE_QUE_VOCE_ESCOLHEU'
+.\scripts\deploy-local.ps1
+kubectl get deployments,pods,services,pvc
+kubectl port-forward svc/payments-api 8082:80
 ```
 
-- Se necessário, construa/carregue as imagens localmente no seu cluster (`payments-api:local` é o nome usado no deployment de PaymentsAPI).
-- O exemplo de Secret do PaymentsAPI possui `RabbitMq__Username=payments` e senha `CHANGE_ME`. **Antes do deploy**, configure-o com as mesmas credenciais criadas para o RabbitMQ; não versionar senhas reais.
-- Em ambiente de estudo, os exemplos no diretório `k8s/` contêm valores fictícios: **não usar em produção**.
-- A persistência do RabbitMQ nesta versão Kubernetes é efêmera. Para produção, usar StatefulSet e volume persistente, autenticação/TLS e credenciais gerenciadas.
+Para Bash/Linux/macOS: `export DOCKERHUB_USERNAME=... RABBITMQ_PASSWORD=...; bash scripts/deploy-local.sh`. Os scripts criam os Secrets pelo cliente do kubectl, sem salvar a senha em arquivos versionados. Ainda assim, **comandos de terminal podem aparecer no histórico**: use um gerenciador de segredos em ambientes reais.
 
-## Próximos incrementos
+Se o repositório Docker Hub for privado, crie um `imagePullSecret` (`docker-registry`) e referencie-o no Deployment (não versione credenciais). Imagens públicas dispensam isso.
 
-1. Adicionar ao Compose os três novos serviços e suas dependências, sem copiar o código das APIs.
-2. Completar a configuração dos consumidores no CatalogAPI e NotificationsAPI.
-3. Padronizar Secrets e ConfigMaps por serviço e automatizar deploy do cluster local.
-4. Validar `docker compose up --build`, fluxo ponta a ponta e `kubectl get pods`.
+**Obs.:** a API usa SQLite em PVC ReadWriteOnce, uma única réplica e estratégia Recreate. Não escalar horizontalmente neste estágio. RabbitMQ neste exemplo tem armazenamento efêmero.
 
-> Esta entrega é um **esqueleto de orquestração operacional para PaymentsAPI + RabbitMQ**, não uma implementação fictícia das outras três APIs.
+## 4. Testes PaymentsAPI
+
+```powershell
+.\scripts\test-payments.ps1
+kubectl logs deploy/payments-api --tail=100
+kubectl logs deploy/rabbitmq --tail=100
+```
+
+O script roda `dotnet test` e valida `/health` e `/ready` do **Compose** em localhost:8082 (não teste o localhost se só fez deploy K8s sem port-forward). Para teste de evento ponta a ponta, publicar `Fcg.Contracts:OrderPlacedEvent` via MassTransit, consultar `GET /api/payments/{orderId}` e verificar o `PaymentProcessedEvent` e o consumidor real do Catalog/Notifications. Não basta o health check para certificar esses fluxos.
+
+## 5. Integração dos outros serviços
+
+Para cada serviço, receber Dockerfile, tag publicada no Docker Hub, porta, nomes de Service, configurações não sensíveis, segredos necessários e endpoints de health. Criar e manter os manifestos somente aqui. Adicionar `k8s/<servico>/` neste repositório e uma entrada `image: <usuario>/<imagem>:<tag>` no Deployment. Aplicar em ordem de dependência; acrescentar os serviços no Compose para cumprir o `docker compose up` da aplicação completa.
+
+**Organização confirmada com o professor:** quatro repositórios independentes para código/Dockerfile, mais o `FCG-Orchestration` com os manifestos Deployment, Service, ConfigMap e Secret (segredos criados na implantação, sem credenciais em texto aberto). Dockerfiles multi-stage, fluxos end-to-end, Compose completo e deploy Kubernetes continuam como critérios técnicos. Esta entrega ainda não demonstra os quatro serviços.
+
+## 6. Migração dos manifestos para um único repositório
+
+Em cada repositório de microsserviço onde exista uma pasta `k8s`, remova-a **do Git** depois de confirmar que os manifests necessários foram incorporados ao `FCG-Orchestration/k8s/<servico>`:
+
+```powershell
+git rm -r k8s
+git commit -m "chore: centraliza manifestos k8s no FCG-Orchestration"
+git push
+```
+
+Não apague Dockerfile, código, testes ou contratos dos microsserviços. Publique a imagem no Docker Hub; o `FCG-Orchestration` referencia sua tag no `Deployment` e no `docker-compose.yml`.

@@ -2,41 +2,35 @@ name: fcg
 services:
   rabbitmq:
     image: rabbitmq:3.13-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+    ports: ["5672:5672", "15672:15672"]
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-fcg}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-fcg-local-only}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD no .env}
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
       timeout: 5s
       retries: 12
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
+    volumes: ["rabbitmq_data:/var/lib/rabbitmq"]
 
   payments-api:
-    build:
-      context: ../FCG_PaymentsAPI
-      dockerfile: Dockerfile
-    ports:
-      - "8082:8080"
+    image: ${PAYMENTS_IMAGE}
+    pull_policy: always
+    ports: ["8082:8080"]
     depends_on:
       rabbitmq:
         condition: service_healthy
     environment:
+      ASPNETCORE_ENVIRONMENT: Development
       RabbitMq__Host: rabbitmq
       RabbitMq__Username: ${RABBITMQ_USER:-fcg}
-      RabbitMq__Password: ${RABBITMQ_PASSWORD:-fcg-local-only}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD no .env}
       RabbitMq__OrderQueue: payments-order-placed
-      ConnectionStrings__PaymentsDb: "Data Source=/app/data/payments.db"
-      PaymentSimulation__MaximumApprovedAmount: "1000"
-    volumes:
-      - payments_data:/app/data
+      ConnectionStrings__PaymentsDb: "Data Source=/app/data/payments-v2.db"
+    volumes: ["payments_data:/app/data"]
 
-  # UsersAPI, CatalogAPI e NotificationsAPI serão adicionadas quando
-  # seus repositórios existirem, com contextos de build ../UsersAPI etc.
+  # Habilitar os demais serviços após receber os nomes de imagem, portas,
+  # variáveis de ambiente e dependências dos respectivos repositórios.
 volumes:
   rabbitmq_data:
   payments_data:

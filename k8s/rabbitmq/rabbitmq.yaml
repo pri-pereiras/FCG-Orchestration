@@ -5,14 +5,6 @@ metadata:
 data:
   RABBITMQ_DEFAULT_USER: "fcg"
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: rabbitmq-secret
-type: Opaque
-stringData:
-  RABBITMQ_DEFAULT_PASS: "CHANGE_ME"
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
