@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: catalog-api
+  template:
+    metadata:
+      labels:
+        app: catalog-api
+    spec:
+      containers:
+        - name: catalog-api
+          image: pripereiras/fcg-catalog-api:1.0.2
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: catalog-api-config
+            - secretRef:
+                name: catalog-api-secret
+          env:
+            - name: SQLSERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-sqlserver-secret
+                  key: MSSQL_SA_PASSWORD
+            - name: ConnectionStrings__SqlConnection
+              value: "Server=sqlserver,1433;Database=CatalogDb;User Id=sa;Password=$(SQLSERVER_PASSWORD);TrustServerCertificate=True;"
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
