@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: users-api
+  template:
+    metadata:
+      labels:
+        app: users-api
+    spec:
+      containers:
+        - name: users-api
+          image: gustavotianosilva/fcg-users-api:1.0.0
+          imagePullPolicy: Always
+
+          ports:
+            - name: http
+              containerPort: 8080
+
+          envFrom:
+            - configMapRef:
+                name: users-api-config
+            - secretRef:
+                name: rabbitmq-client-secret
+
+          env:
+            - name: SQLSERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: catalog-sqlserver-secret
+                  key: MSSQL_SA_PASSWORD
+
+            - name: ConnectionStrings__SqlConnection
+              value: "Server=sqlserver,1433;Database=FcgUsersDb;User Id=sa;Password=$(SQLSERVER_PASSWORD);TrustServerCertificate=True;"
+
+            - name: Jwt__SecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: users-api-secret
+                  key: Jwt__SecretKey
+
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8080
+            periodSeconds: 20
+
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi

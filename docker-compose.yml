@@ -2,7 +2,9 @@ name: fcg
 services:
   rabbitmq:
     image: rabbitmq:3.13-management
-    ports: ["5672:5672", "15672:15672"]
+    ports:
+      - "5674:5672"
+      - "15674:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-fcg}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD no .env}
@@ -11,26 +13,109 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
-    volumes: ["rabbitmq_data:/var/lib/rabbitmq"]
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
 
-  payments-api:
-    image: ${PAYMENTS_IMAGE}
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SQLSERVER_SA_PASSWORD:?Defina SQLSERVER_SA_PASSWORD no .env}
+    volumes:
+      - catalog_sql_data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" >/dev/null || exit 1'
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 15
+
+
+  users-api:
+    image: ${USERS_IMAGE}
     pull_policy: always
-    ports: ["8082:8080"]
+    ports:
+      - "8080:8080"
     depends_on:
+      sqlserver:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__SqlConnection: "Server=sqlserver,1433;Database=FcgUsersDb;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:?Configure SQLSERVER_SA_PASSWORD};TrustServerCertificate=True;"
+      Jwt__SecretKey: ${JWT_SECRET_KEY:?Configure JWT_SECRET_KEY}
+      Jwt__Issuer: ${JWT_ISSUER:-FCG.UsersAPI}
+      Jwt__Audience: ${JWT_AUDIENCE:-FCG.Platform}
+      Jwt__ExpirationInMinutes: ${JWT_EXPIRATION_MINUTES:-60}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__Username: ${RABBITMQ_USER:-fcg}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?Configure RABBITMQ_PASSWORD}
+    restart: on-failure:3
+
+  catalog-api:
+    image: ${CATALOG_IMAGE:-pripereiras/fcg-catalog-api:1.0.0}
+    pull_policy: always
+    ports:
+      - "8081:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      ConnectionStrings__SqlConnection: "Server=sqlserver,1433;Database=CatalogDb;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:?Defina SQLSERVER_SA_PASSWORD no .env};TrustServerCertificate=True;"
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: "/"
+      RabbitMq__Username: ${RABBITMQ_USER:-fcg}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD no .env}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure:3
+
+  payments-api:
+    image: ${PAYMENTS_IMAGE:-pripereiras/fcg-payments-api:2.0}
+    pull_policy: always
+    ports:
+      - "8082:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
       RabbitMq__Host: rabbitmq
       RabbitMq__Username: ${RABBITMQ_USER:-fcg}
       RabbitMq__Password: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD no .env}
       RabbitMq__OrderQueue: payments-order-placed
       ConnectionStrings__PaymentsDb: "Data Source=/app/data/payments-v2.db"
-    volumes: ["payments_data:/app/data"]
+    volumes:
+      - payments_data:/app/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure:3
 
-  # Habilitar os demais serviços após receber os nomes de imagem, portas,
-  # variáveis de ambiente e dependências dos respectivos repositórios.
+
+  notifications-api:
+    image: ${NOTIFICATIONS_IMAGE}
+    pull_policy: always
+    ports:
+      - "8083:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_HTTP_PORTS: "8080"
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Port: "5672"
+      RabbitMq__Username: ${RABBITMQ_USER:-fcg}
+      RabbitMq__Password: ${RABBITMQ_PASSWORD:?Configure RABBITMQ_PASSWORD}
+    restart: on-failure:3
+
+
 volumes:
   rabbitmq_data:
   payments_data:
+  catalog_sql_data:
