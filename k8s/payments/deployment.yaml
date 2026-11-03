@@ -18,7 +18,7 @@ spec:
         fsGroup: 1654
       containers:
         - name: payments-api
-          image: pripereiras/fcg-payments-api:2.1
+          image: pripereiras/fcg-payments-api:2.2
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
