@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: users-api
-          image: pripereiras/fcg-users-api:1.0.3
+          image: pripereiras/fcg-users-api:latest
           imagePullPolicy: Always
 
           ports:

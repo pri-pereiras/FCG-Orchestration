@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: catalog-api
-          image: pripereiras/fcg-catalog-api:1.0.4
+          image: pripereiras/fcg-catalog-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
