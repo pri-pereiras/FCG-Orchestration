@@ -50,10 +50,10 @@ function Apply-Image([string]$file, [string]$image, [string]$pattern) {
 if (-not $env:RABBITMQ_USER) { $env:RABBITMQ_USER = 'fcg' }
 if (-not $env:RABBITMQ_PASSWORD -or $env:RABBITMQ_PASSWORD -eq 'DEFINIR_LOCALMENTE') { throw 'Defina RABBITMQ_PASSWORD no ambiente.' }
 if (-not $env:SQLSERVER_SA_PASSWORD -or $env:SQLSERVER_SA_PASSWORD -eq 'DEFINIR_LOCALMENTE') { throw 'Defina SQLSERVER_SA_PASSWORD no ambiente.' }
-if (-not $env:USERS_IMAGE) { $env:USERS_IMAGE = 'pripereiras/fcg-users-api:1.0.3' }
-if (-not $env:CATALOG_IMAGE) { $env:CATALOG_IMAGE = 'pripereiras/fcg-catalog-api:1.0.4' }
-if (-not $env:PAYMENTS_IMAGE) { $env:PAYMENTS_IMAGE = 'pripereiras/fcg-payments-api:2.2' }
-if (-not $env:NOTIFICATIONS_IMAGE) { $env:NOTIFICATIONS_IMAGE = 'pripereiras/fcg-notifications-api:1.0.4' }
+if (-not $env:USERS_IMAGE) { $env:USERS_IMAGE = 'pripereiras/fcg-users-api:latest' }
+if (-not $env:CATALOG_IMAGE) { $env:CATALOG_IMAGE = 'pripereiras/fcg-catalog-api:latest' }
+if (-not $env:PAYMENTS_IMAGE) { $env:PAYMENTS_IMAGE = 'pripereiras/fcg-payments-api:latest' }
+if (-not $env:NOTIFICATIONS_IMAGE) { $env:NOTIFICATIONS_IMAGE = 'pripereiras/fcg-notifications-api:latest' }
 
 kubectl config current-context
 Assert-Ok 'contexto Kubernetes'

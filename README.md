@@ -6,10 +6,10 @@ Repositório central de **orquestração**, sem código-fonte ou Dockerfiles dos
 
 | Componente | Imagem | Porta local (Compose) | Endereço interno no Kubernetes |
 |---|---|---|---|
-| UsersAPI | `pripereiras/fcg-users-api:1.0.3` | `8080` | `users-api:80` → container `8080` |
-| CatalogAPI | `pripereiras/fcg-catalog-api:1.0.4` | `8081` | `catalog-api:80` → container `8080` |
-| PaymentsAPI | `pripereiras/fcg-payments-api:2.2` | `8082` | `payments-api:80` → container `8080` |
-| NotificationsAPI | `pripereiras/fcg-notifications-api:1.0.4` | `8083` | `notifications-api:80` → container `8080` |
+| UsersAPI | `pripereiras/fcg-users-api:latest` | `8080` | `users-api:80` → container `8080` |
+| CatalogAPI | `pripereiras/fcg-catalog-api:latest` | `8081` | `catalog-api:80` → container `8080` |
+| PaymentsAPI | `pripereiras/fcg-payments-api:latest` | `8082` | `payments-api:80` → container `8080` |
+| NotificationsAPI | `pripereiras/fcg-notifications-api:latest` | `8083` | `notifications-api:80` → container `8080` |
 | RabbitMQ | `rabbitmq:3.13-management` | AMQP `5674`, painel `15674` | `rabbitmq:5672`, painel `rabbitmq:15672` |
 | SQL Server | `mcr.microsoft.com/mssql/server:2022-latest` | Sem exposição externa | `sqlserver:1433` |
 

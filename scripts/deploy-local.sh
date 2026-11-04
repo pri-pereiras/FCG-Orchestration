@@ -41,10 +41,10 @@ fi
 
 RABBITMQ_USER="${RABBITMQ_USER:-fcg}"
 
-USERS_IMAGE="${USERS_IMAGE:-pripereiras/fcg-users-api:1.0.3}"
-CATALOG_IMAGE="${CATALOG_IMAGE:-pripereiras/fcg-catalog-api:1.0.4}"
-PAYMENTS_IMAGE="${PAYMENTS_IMAGE:-pripereiras/fcg-payments-api:2.2}"
-NOTIFICATIONS_IMAGE="${NOTIFICATIONS_IMAGE:-pripereiras/fcg-notifications-api:1.0.4}"
+USERS_IMAGE="${USERS_IMAGE:-pripereiras/fcg-users-api:latest}"
+CATALOG_IMAGE="${CATALOG_IMAGE:-pripereiras/fcg-catalog-api:latest}"
+PAYMENTS_IMAGE="${PAYMENTS_IMAGE:-pripereiras/fcg-payments-api:latest}"
+NOTIFICATIONS_IMAGE="${NOTIFICATIONS_IMAGE:-pripereiras/fcg-notifications-api:latest}"
 
 kubectl config current-context
 kubectl cluster-info >/dev/null
